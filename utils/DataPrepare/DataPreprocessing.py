@@ -3,6 +3,7 @@ from utils.DataPrepare.scenario import scenario_choice
 from utils.DataPrepare.project_level_name import project_level_name_choice
 from utils.DataPrepare.business_group_name import business_group_name_choice
 from utils.DataPrepare.project_label import project_label_choice
+from utils.DataPrepare.business_unit import business_unit_choice
 import numpy as np
 
 input = CSV_Input()
@@ -11,6 +12,7 @@ input = CSV_Input()
 0   0   * scenario: np.array
 3   1   project_id
 2   3   project_name
+1   4   business_unit
 4   5   region_id
 5   8   rep_office_id
 6   11  customer_id
@@ -18,15 +20,12 @@ input = CSV_Input()
 8   25  business_group_name
 9   26  delivery_type
 10  33  project_label
---------------------
-1   4   business_unit
 """
 if __name__ == '__main__':
     """
     保存数据的格式：
-    [[0-2,4-12,[81],]]
-    len=[0-12, 13-93(0/1)]
-    预测目标索引：2
+    [[0-10,[81],]]
+    len=[0-10, 11-91(0/1)]
     """
     pre_data = input.read(filename="db.csv")
     project_id = None
@@ -45,8 +44,8 @@ if __name__ == '__main__':
             data_item = [0] * 92
             project_id = new_project_id
             # 给各字段赋值
-            data_item[0] = pre_data_item[4]
-            data_item[1] = pre_data_item[3]  # name
+            data_item[0] = pre_data_item[3]  # name
+            data_item[1] = business_unit_choice[pre_data_item[4]]  # bu
             data_item[2] = int(pre_data_item[1])
             data_item[3] = int(pre_data_item[5])
             data_item[4] = int(pre_data_item[8])
