@@ -184,13 +184,16 @@ def predict(data, clf_list, proba=False):
 
 if __name__ == '__main__':
     data = load_dataset("../../../data.npy")
-    d = data[0]
+    d = data[18]
+
+    train(data, "decision_tree.m")
+
     import time
 
     t1 = time.time()
     clf_list = load_model("decision_tree.m")
     t2 = time.time()
-    result = test(d, clf_list=clf_list, proba=False)
+    result = test(d, clf_list=clf_list, proba=True)
     t3 = time.time()
     d0 = d[1:10]
     dd0 = data[:, 1:10]
