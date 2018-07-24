@@ -125,31 +125,28 @@ def load_model(file_name):
     return joblib.load(file_name)
 
 
-def test(data, clf_list, proba=False):
+def test(feature_set, label, clf_list, proba=False):
     """
     测试数据
-    :param data: 测试数据
+    :param feature_set: 测试数据X
+    :param label: 测试数据Y
     :param clf_list: 决策树数组（从文件导入后）
     :param proba: 是否输出概率，默认为False
     :return:
     """
     result = []
     try:
-        for i in data:
-            X = i[1:10]
+        for i in feature_set:
             item = []
             for index in np.arange(11, 92, 1):
-                Y = i[index]
-                x = test_feature(clf_list[index - 11], [X], y_test=[Y], proba=proba)
+                x = test_feature(clf_list[index - 11], feature_set, y_test=label, proba=proba)
                 item.append(x)
             result.append(item)
     except:
         # 若仅有一项
-        X = data[1:10]
         item = []
         for index in np.arange(11, 92, 1):
-            Y = data[index]
-            x = test_feature(clf_list[index - 11], [X], y_test=[Y], proba=proba)
+            x = test_feature(clf_list[index - 11], [feature_set], y_test=[label], proba=proba)
             item.append(x)
         result.append(item)
     return np.array(result)
@@ -184,22 +181,23 @@ def predict(data, clf_list, proba=False):
 
 if __name__ == '__main__':
     data = load_dataset("../../../data.npy")
-    d = data[18]
 
-    train(data, "decision_tree.m")
+    feature_set = []
+    label = []
 
-    import time
+    for data_item in data:
+        # 转为数字
+        item = []
+        for index in range(len(data_item)):
+            if index != 0:
+                item.append(int(data_item[index]))
 
-    t1 = time.time()
+        feature_set.append(item[0:10])  # 未加入项目名称
+        label.append(item[11:])  # 11-91
+
+    # feature_set = np.array(feature_set)
+    # label = np.array(label)
+
     clf_list = load_model("decision_tree.m")
-    t2 = time.time()
-    result = test(d, clf_list=clf_list, proba=True)
-    t3 = time.time()
-    d0 = d[1:10]
-    dd0 = data[:, 1:10]
-    t4 = time.time()
-    r = predict(d0, clf_list)
-    t5 = time.time()
-    print((int(round((t2 - t1) * 1000))))
-    print((int(round((t3 - t2) * 1000))))
-    print((int(round((t5 - t4) * 1000))))
+
+    result = test(feature_set, label, clf_list=clf_list, proba=False)
