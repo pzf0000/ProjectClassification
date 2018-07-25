@@ -20,3 +20,17 @@ class BaseIO(BaseInput, BaseOutput):
 
 class IO(BaseIO):
     pass
+
+
+import numpy as np
+import pandas as pd
+
+
+def load_dataset(filename):
+    try:
+        return np.load(filename)
+    except:
+        try:
+            return pd.read_csv(filename)
+        except:
+            raise ValueError("Can not open file.")

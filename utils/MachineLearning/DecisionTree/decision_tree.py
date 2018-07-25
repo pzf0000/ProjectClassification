@@ -8,16 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.externals.six import StringIO
 import pydotplus
 
-
-def load_dataset(filename):
-    try:
-        return np.load(filename)
-    except:
-        try:
-            return pd.read_csv(filename)
-        except:
-            raise ValueError("Can not open file.")
-
+from utils.IO.IO import load_dataset
 
 def train_feature(
         data,
@@ -42,9 +33,19 @@ def train_feature(
     """
     feature_set = []
     label = []
-    for i in data:
-        feature_set.append(i[1:10])  # 未加入项目名称
-        label.append(i[label_index])
+
+    for data_item in data:
+        # 转为数字
+        item = []
+        for index in range(len(data_item)):
+            if index != 0:
+                item.append(int(data_item[index]))
+
+        feature_set.append(item[0:10])  # 未加入项目名称
+        label.append(item[11:])  # 11-91
+
+    feature_set = np.array(feature_set)
+    label = np.array(label)
 
     # 将数据随机分成训练集和测试集
     x_train, x_test, y_train, y_test = train_test_split(feature_set, label, random_state=1)
@@ -195,8 +196,10 @@ if __name__ == '__main__':
         feature_set.append(item[0:10])  # 未加入项目名称
         label.append(item[11:])  # 11-91
 
-    # feature_set = np.array(feature_set)
-    # label = np.array(label)
+    feature_set = np.array(feature_set)
+    label = np.array(label)
+
+    train(data, "decision_tree.m")
 
     clf_list = load_model("decision_tree.m")
 
