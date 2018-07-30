@@ -47,7 +47,7 @@ def data_prepocessing(data_file, project_id=False):
 
 
 if __name__ == '__main__':
-
+    """
     data = data_prepocessing("data.npy", False)
     x_train = data[0]
     y_train = data[2]
@@ -70,34 +70,22 @@ if __name__ == '__main__':
         x.append([accuracy_score(y_test, result), end-start])
     print(x)
     """
-    data = data_prepocessing("data.npy", True)
+    # data = data_prepocessing("data.npy", False)
+    #
+    # x_train = data[0]
+    # y_train = data[2]
+    # x_test = data[1]
+    # y_test = data[3]
+    import torch
+    from torch.autograd import Variable
 
-    x_train = data[0]
-    y_train = data[2]
-    x_test = data[1]
-    y_test = data[3]
+    x = torch.randn(3)
+    x = Variable(x, requires_grad=True)
 
-    from sklearn.ensemble import RandomForestClassifier
-    from skmultilearn.problem_transform import LabelPowerset
-    from skmultilearn.cluster import IGraphLabelCooccurenceClusterer
-    from skmultilearn.ensemble import LabelSpacePartitioningClassifier
+    y = x * 2
+    while y.data.norm() < 1000:
+        y = y * 2
 
-    # construct base forest classifier
-    base_classifier = RandomForestClassifier()
+    print(y)
 
-    # setup problem transformation approach with sparse matrices for random forest
-    problem_transform_classifier = LabelPowerset(classifier=base_classifier, require_dense=[False, False])
 
-    # partition the label space using fastgreedy community detection
-    # on a weighted label co-occurrence graph with self-loops allowed
-    clusterer = IGraphLabelCooccurenceClusterer('fastgreedy', weighted=True, include_self_edges=True)
-
-    # setup the ensemble metaclassifier
-    classifier = LabelSpacePartitioningClassifier(problem_transform_classifier, clusterer)
-
-    # train
-    classifier.fit(x_train, y_train)
-
-    # predict
-    predictions = classifier.predict(x_test)
-    """
