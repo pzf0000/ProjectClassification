@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 
-def load_dataset(filename):
+def load_dataset(filename="data.npy"):
     try:
         return np.load(filename)
     except:
