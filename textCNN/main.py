@@ -2,9 +2,11 @@ import os
 import argparse
 import datetime
 import torch
+from sklearn.cross_validation import train_test_split
 from torchtext import data
 from torchtext import datasets
 from textCNN import mydatasets, model, train
+from utils.IO.IO import load_dataset
 
 
 def arg_parser():
@@ -40,7 +42,7 @@ def arg_parser():
 
 
 # load SST dataset
-def sst(text_field, label_field,  **kargs):
+def sst(text_field, label_field, **kargs):
     train_data, dev_data, test_data = datasets.SST.splits(text_field, label_field, fine_grained=True)
     text_field.build_vocab(train_data, dev_data, test_data)
     label_field.build_vocab(train_data, dev_data, test_data)
@@ -57,16 +59,63 @@ def mr(text_field, label_field, **kargs):
     return train_iter, dev_iter
 
 
+# load scenario dataset
+def scenario(text_field, label_field, **kargs):
+    train_data, dev_data = mydatasets.Scenario.splits(text_field, label_field)
+    text_field.build_vocab(train_data, dev_data)
+    label_field.build_vocab(train_data, dev_data)
+    train_iter, dev_iter = data.Iterator.splits((train_data, dev_data), batch_sizes=(args.batch_size, len(dev_data)), **kargs)
+    return train_iter, dev_iter
+
+
+def prepare_data(data, index):
+    feature_set = data[:, 0]
+    label = data[:, index]
+    x_train, x_test, y_train, y_test = train_test_split(feature_set, label, random_state=1)
+
+    file_pos = open("train.pos", "w")
+    file_neg = open("train.neg", "w")
+
+    len_train = len(x_train)
+    for i in range(len_train):
+        if y_train[i] == "1":
+            file_pos.write(x_train[i])
+            file_pos.write("\n")
+        else:
+            file_neg.write(x_train[i])
+            file_neg.write("\n")
+
+    file_pos.close()
+    file_neg.close()
+
+    file_pos = open("test.pos", "w")
+    file_neg = open("test.neg", "w")
+
+    len_test = len(x_test)
+    for i in range(len_test):
+        if y_test[i] == "1":
+            file_pos.write(x_test[i])
+            file_pos.write("\n")
+        else:
+            file_neg.write(x_test[i])
+            file_neg.write("\n")
+
+    file_pos.close()
+    file_neg.close()
+
+
 if __name__ == '__main__':
     args = arg_parser()
 
     # load data
-    print("Loading data...")
+    dataset = load_dataset()
+    index = 91
+    prepare_data(dataset, index)
     text_field = data.Field(lower=True)
     label_field = data.Field(sequential=False)
-    train_iter, dev_iter = mr(text_field, label_field, device=-1, repeat=False)
+    # train_iter, dev_iter = mr(text_field, label_field, device=-1, repeat=False)
     # train_iter, dev_iter, test_iter = sst(text_field, label_field, device=-1, repeat=False)
-
+    train_iter, dev_iter = scenario(text_field, label_field, device=-1, repeat=False)
 
     # update args and print
     args.embed_num = len(text_field.vocab)
@@ -79,7 +128,6 @@ if __name__ == '__main__':
     for attr, value in sorted(args.__dict__.items()):
         print("\t{}={}".format(attr.upper(), value))
 
-
     # model
     cnn = model.CNN_Text(args)
     if args.snapshot is not None:
@@ -89,7 +137,6 @@ if __name__ == '__main__':
     if args.cuda:
         torch.cuda.set_device(args.device)
         cnn = cnn.cuda()
-
 
     # train or predict
     if args.predict is not None:
@@ -101,7 +148,6 @@ if __name__ == '__main__':
         except Exception as e:
             print("\nSorry. The test dataset doesn't exist.\n")
     else:
-        print()
         try:
             train.train(train_iter, dev_iter, cnn, args)
         except KeyboardInterrupt:

@@ -31,10 +31,9 @@ class TarDataset(data.Dataset):
 
 
 class MR(TarDataset):
-
     url = 'https://www.cs.cornell.edu/people/pabo/movie-review-data/rt-polaritydata.tar.gz'
-    filename = 'rt-polaritydata.tar'
-    dirname = 'rt-polaritydata'
+    filename = 'textCNN/rt-polaritydata.tar'
+    dirname = 'textCNN/rt-polaritydata'
 
     @staticmethod
     def sort_key(ex):
@@ -51,6 +50,7 @@ class MR(TarDataset):
             Remaining keyword arguments: Passed to the constructor of
                 data.Dataset.
         """
+
         def clean_str(string):
             """
             Tokenization/string cleaning for all datasets except for SST.
@@ -104,37 +104,64 @@ class MR(TarDataset):
         path = cls.download_or_unzip(root)
         examples = cls(text_field, label_field, path=path, **kwargs).examples
         if shuffle: random.shuffle(examples)
-        dev_index = -1 * int(dev_ratio*len(examples))
+        dev_index = -1 * int(dev_ratio * len(examples))
 
         return (cls(text_field, label_field, examples=examples[:dev_index]),
                 cls(text_field, label_field, examples=examples[dev_index:]))
 
 
 class Scenario(data.Dataset):
+
     @staticmethod
     def sort_key(ex):
         return len(ex.text)
 
-    def __init__(self, path, text_field, label_field, subtrees=False, **kwargs):
-        """
-        创建数据集
-        :param path: 数据集文件路径
-        :param text_field: 数据
-        :param label_field: 标签
-        :param subtrees: 是否有额外的情感标签短语去完成样例，默认为False
-        :param kwargs: 参数
-        """
+    def __init__(self, text_field, label_field, path=None, examples=None, **kwargs):
+
+        def clean_str(string):
+            """
+            Tokenization/string cleaning for all datasets except for SST.
+            Original taken from https://github.com/yoonkim/CNN_sentence/blob/master/process_data.py
+            """
+            string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
+            string = re.sub(r"\'s", " \'s", string)
+            string = re.sub(r"\'ve", " \'ve", string)
+            string = re.sub(r"n\'t", " n\'t", string)
+            string = re.sub(r"\'re", " \'re", string)
+            string = re.sub(r"\'d", " \'d", string)
+            string = re.sub(r"\'ll", " \'ll", string)
+            string = re.sub(r",", " , ", string)
+            string = re.sub(r"!", " ! ", string)
+            string = re.sub(r"\(", " \( ", string)
+            string = re.sub(r"\)", " \) ", string)
+            string = re.sub(r"\?", " \? ", string)
+            string = re.sub(r"\s{2,}", " ", string)
+            return string.strip()
+
+        label_field.preprocessing = data.Pipeline(clean_str)
         fields = [('text', text_field), ('label', label_field)]
 
-        def get_label_str(label):
-            return {0: '0', 1: '1', None: 0}[label]
+        if examples is None:
+            examples = []
 
-        label_field.preprocessing = data.Pipeline(get_label_str)
+            with open('train.neg', errors="ignore") as f:
+                examples += [
+                    data.Example.fromlist([line, "negative"], fields) for line in f]
 
-        with open(os.path.expanduser(path)) as f:
-            if subtrees:
-                examples = [ex for line in f for ex in
-                            data.Example.fromtree(line, fields, True)]
-            else:
-                examples = [data.Example.fromtree(line, fields) for line in f]
+            with open('train.pos', errors="ignore") as f:
+                examples += [
+                    data.Example.fromlist([line, "positive"], fields) for line in f]
+
         super(Scenario, self).__init__(examples, fields, **kwargs)
+
+    @classmethod
+    def splits(cls, text_field, label_field, dev_ratio=.1, shuffle=True, root='.', **kwargs):
+        path = root
+        examples = cls(text_field, label_field, path=path, **kwargs).examples
+
+        if shuffle:
+            random.shuffle(examples)
+        dev_index = -1 * int(dev_ratio * len(examples))
+
+        return (cls(text_field, label_field, examples=examples[:dev_index]),
+                cls(text_field, label_field, examples=examples[dev_index:]))

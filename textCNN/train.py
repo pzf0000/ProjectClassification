@@ -15,7 +15,7 @@ def train(train_iter, dev_iter, model, args):
     best_acc = 0
     last_step = 0
     model.train()
-    for epoch in range(1, args.epochs+1):
+    for epoch in range(1, args.epochs + 1):
         for batch in train_iter:
             feature, target = batch.text, batch.label
             feature.data.t_(), target.data.sub_(1)  # batch first, index align
@@ -25,8 +25,8 @@ def train(train_iter, dev_iter, model, args):
             optimizer.zero_grad()
             logit = model(feature)
 
-            #print('logit vector', logit.size())
-            #print('target vector', target.size())
+            # print('logit vector', logit.size())
+            # print('target vector', target.size())
             loss = F.cross_entropy(logit, target)
             loss.backward()
             optimizer.step()
@@ -34,8 +34,10 @@ def train(train_iter, dev_iter, model, args):
             steps += 1
             if steps % args.log_interval == 0:
                 corrects = (torch.max(logit, 1)[1].view(target.size()).data == target.data).sum()
-                accuracy = 100.0 * corrects/batch.batch_size
-                sys.stdout.write('\rBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})'.format(steps, loss.data[0], accuracy, corrects, batch.batch_size))
+                accuracy = 100.0 * corrects / batch.batch_size
+                sys.stdout.write(
+                    '\rBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})'.format(steps, loss.data[0], accuracy, corrects,
+                                                                             batch.batch_size))
 
             if steps % args.test_interval == 0:
                 dev_acc = eval(dev_iter, model, args)
@@ -69,10 +71,10 @@ def eval(data_iter, model, args):
 
     size = len(data_iter.dataset)
     avg_loss /= size
-    accuracy = 100.0 * corrects/size
-    print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss, 
-                                                                       accuracy, 
-                                                                       corrects, 
+    accuracy = 100.0 * corrects / size
+    print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
+                                                                       accuracy,
+                                                                       corrects,
                                                                        size))
     return accuracy
 
@@ -90,8 +92,8 @@ def predict(text, model, text_field, label_feild, cuda_flag):
     print(x)
     output = model(x)
     _, predicted = torch.max(output, 1)
-    #return label_feild.vocab.itos[predicted.data[0][0]+1]
-    return label_feild.vocab.itos[predicted.data[0]+1]
+    # return label_feild.vocab.itos[predicted.data[0][0]+1]
+    return label_feild.vocab.itos[predicted.data[0] + 1]
 
 
 def save(model, save_dir, save_prefix, steps):
