@@ -5,9 +5,9 @@ import torch.autograd as autograd
 import torch.nn.functional as F
 
 
-def train(train_iter, dev_iter, model, args):
-    if args.cuda:
-        model.cuda()
+def train(train_iter, dev_iter, model, index, args):
+    # if args.cuda:
+    #     model.cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -19,8 +19,8 @@ def train(train_iter, dev_iter, model, args):
         for batch in train_iter:
             feature, target = batch.text, batch.label
             feature.data.t_(), target.data.sub_(1)  # batch first, index align
-            if args.cuda:
-                feature, target = feature.cuda(), target.cuda()
+            # if args.cuda:
+            #     feature, target = feature.cuda(), target.cuda()
 
             optimizer.zero_grad()
             logit = model(feature)
@@ -35,22 +35,25 @@ def train(train_iter, dev_iter, model, args):
             if steps % args.log_interval == 0:
                 corrects = (torch.max(logit, 1)[1].view(target.size()).data == target.data).sum()
                 accuracy = 100.0 * corrects / batch.batch_size
-                sys.stdout.write(
-                    '\rBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})'.format(steps, loss.data[0], accuracy, corrects,
-                                                                             batch.batch_size))
+                if steps % 100 == 0:
+                    print()
+                    sys.stdout.write(
+                        str(index) + "\tBatch[{}] - loss: {:.6f}  acc: {:.4f}%({}/{})\n".format(steps,
+                                                                                 loss.data[0], accuracy, corrects,
+                                                                                 batch.batch_size))
 
             if steps % args.test_interval == 0:
-                dev_acc = eval(dev_iter, model, args)
+                dev_acc = eval(dev_iter, model, args)[0]
                 if dev_acc > best_acc:
                     best_acc = dev_acc
                     last_step = steps
                     if args.save_best:
-                        save(model, args.save_dir, 'best', steps)
+                        save(model, args.save_dir, 'best', steps, index)
                 else:
                     if steps - last_step >= args.early_stop:
                         print('early stop by {} steps.'.format(args.early_stop))
             elif steps % args.save_interval == 0:
-                save(model, args.save_dir, 'snapshot', steps)
+                save(model, args.save_dir, 'snapshot', steps, index)
 
 
 def eval(data_iter, model, args):
@@ -59,8 +62,8 @@ def eval(data_iter, model, args):
     for batch in data_iter:
         feature, target = batch.text, batch.label
         feature.data.t_(), target.data.sub_(1)  # batch first, index align
-        if args.cuda:
-            feature, target = feature.cuda(), target.cuda()
+        # if args.cuda:
+        #     feature, target = feature.cuda(), target.cuda()
 
         logit = model(feature)
         loss = F.cross_entropy(logit, target, size_average=False)
@@ -72,14 +75,15 @@ def eval(data_iter, model, args):
     size = len(data_iter.dataset)
     avg_loss /= size
     accuracy = 100.0 * corrects / size
-    print('\nEvaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
-                                                                       accuracy,
-                                                                       corrects,
-                                                                       size))
-    return accuracy
+    s = 'Evaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
+                                                                     accuracy,
+                                                                     corrects,
+                                                                     size)
+    print(s)
+    return accuracy, s
 
 
-def predict(text, model, text_field, label_feild, cuda_flag):
+def predict(text, model, text_field, label_feild):
     assert isinstance(text, str)
     model.eval()
     # text = text_field.tokenize(text)
@@ -87,8 +91,8 @@ def predict(text, model, text_field, label_feild, cuda_flag):
     text = [[text_field.vocab.stoi[x] for x in text]]
     x = text_field.tensor_type(text)
     x = autograd.Variable(x, volatile=True)
-    if cuda_flag:
-        x = x.cuda()
+    # if cuda_flag:
+    #     x = x.cuda()
     print(x)
     output = model(x)
     _, predicted = torch.max(output, 1)
@@ -96,9 +100,10 @@ def predict(text, model, text_field, label_feild, cuda_flag):
     return label_feild.vocab.itos[predicted.data[0] + 1]
 
 
-def save(model, save_dir, save_prefix, steps):
+def save(model, save_dir, save_prefix, steps, index):
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
+    save_prefix = str(index) + "_" + save_prefix
     save_prefix = os.path.join(save_dir, save_prefix)
     save_path = '{}_steps_{}.pt'.format(save_prefix, steps)
     torch.save(model.state_dict(), save_path)

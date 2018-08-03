@@ -155,13 +155,16 @@ class Scenario(data.Dataset):
         super(Scenario, self).__init__(examples, fields, **kwargs)
 
     @classmethod
-    def splits(cls, text_field, label_field, dev_ratio=.1, shuffle=True, root='.', **kwargs):
+    def splits(cls, text_field, label_field, dev_ratio=.1, test_ratio=.1, shuffle=True, root='.', **kwargs):
         path = root
         examples = cls(text_field, label_field, path=path, **kwargs).examples
 
         if shuffle:
             random.shuffle(examples)
-        dev_index = -1 * int(dev_ratio * len(examples))
+
+        dev_index = -1 * int((dev_ratio+test_ratio) * len(examples))
+        test_index = -1 * int(test_ratio * len(examples))
 
         return (cls(text_field, label_field, examples=examples[:dev_index]),
-                cls(text_field, label_field, examples=examples[dev_index:]))
+                cls(text_field, label_field, examples=examples[dev_index:test_index]),
+                cls(text_field, label_field, examples=examples[test_index:]))

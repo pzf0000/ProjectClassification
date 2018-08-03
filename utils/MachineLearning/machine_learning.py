@@ -10,6 +10,7 @@ from sklearn.naive_bayes import GaussianNB, BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 
+
 def data_prepocessing(data_file, project_id=False):
     """
     数据预处理
@@ -46,46 +47,65 @@ def data_prepocessing(data_file, project_id=False):
     return x_train, x_test, y_train, y_test
 
 
-if __name__ == '__main__':
-    """
-    data = data_prepocessing("data.npy", False)
+def train(data, save=False, name="model.npy"):
     x_train = data[0]
     y_train = data[2]
-    x_test = data[1]
-    y_test = data[3]
 
     classifiers = [[GaussianNB(), BinaryRelevance],
                    [BernoulliNB(), LabelPowerset],
-                   [DecisionTreeClassifier(criterion="entropy", splitter="random", max_features=0.8, max_depth=18,), LabelPowerset],
+                   [DecisionTreeClassifier(criterion="entropy", splitter="random", max_features=0.8, max_depth=18, ),
+                    LabelPowerset],
                    [SVC(), LabelPowerset],
                    [3, MLkNN]
                    ]
-    x = []
+
+    for i in range(len(classifiers)):
+        classifiers[i] = classifiers[i][1](classifiers[i][0])
+        classifiers[i].fit(x_train, y_train)
+
+    classifiers = np.array(classifiers)
+
+    if save:
+        np.save(name, classifiers)
+
+    return classifiers
+
+
+def load_model(path="model.npy"):
+    return np.load(path)
+
+
+def test(classifiers, x_test, y_test=None, sum=True):
+    if x_test.ndim == 1:
+        x_test = x_test.reshape(1, -1)
+        try:
+            y_test = y_test.reshape(1, -1)
+        except:
+            pass
+
+    acc = []
+    results = []
     for c in classifiers:
-        classifier = c[1](c[0])
-        classifier.fit(x_train, y_train)
-        start = time.time()
-        result = classifier.predict(x_test)
-        end = time.time()
-        x.append([accuracy_score(y_test, result), end-start])
-    print(x)
-    """
-    # data = data_prepocessing("data.npy", False)
-    #
-    # x_train = data[0]
-    # y_train = data[2]
-    # x_test = data[1]
-    # y_test = data[3]
-    import torch
-    from torch.autograd import Variable
+        result = c.predict(x_test)
+        if y_test is not None:
+            acc.append(accuracy_score(y_test, result))
+        results.append(result.toarray())
 
-    x = torch.randn(3)
-    x = Variable(x, requires_grad=True)
+    if sum:
+        result = [[0] * 81] * len(results[0])
+        for re in results:
+            result += re
+        results = result
 
-    y = x * 2
-    while y.data.norm() < 1000:
-        y = y * 2
-
-    print(y)
+    if y_test is None:
+        return results
+    else:
+        return acc, results
 
 
+if __name__ == '__main__':
+    data = data_prepocessing("../../data.npy", False)
+    train(data, True)
+    classifiers = load_model()
+
+    result = test(classifiers, data[1][5])
