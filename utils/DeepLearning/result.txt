@@ -164,3 +164,7 @@
 
 91	Evaluation - loss: 2.724753  acc: 58.0000%(251/426) 
 
+11	Evaluation - loss: 0.000000  acc: 100.0000%(426/426) 
+
+12	Evaluation - loss: 0.000000  acc: 100.0000%(426/426) 
+
