@@ -10,8 +10,8 @@ from utils.DeepLearning.textCNN import Text_CNN
 from utils.IO.IO import load_dataset
 
 
-def scenario(dataset, text_field, label_field, batch_size, **kargs):
-    train_data, dev_data, test_data = Scenario.splits(dataset, text_field, label_field)
+def scenario(dataset, index, text_field, label_field, batch_size, **kargs):
+    train_data, dev_data, test_data = Scenario.splits(dataset, index, text_field, label_field)
     text_field.build_vocab(train_data, dev_data, test_data)
     label_field.build_vocab(train_data, dev_data, test_data)
     train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, test_data),
@@ -55,9 +55,9 @@ def train_and_test(model,
     dataset = load_dataset("../../data.npy")
     for index in range(index_start, index_end + 1):
         text_field = data.Field(lower=True)
-        label_field = data.Field(sequential=False)
-        train_iter, dev_iter, test_iter = scenario(dataset, text_field, label_field, device=-1, repeat=False,
-                                                   batch_size=batch_size)
+        label_field = data.Field(sequential=True)
+        train_iter, dev_iter, test_iter = scenario(dataset, index, text_field, label_field,
+                                                   device=-1, repeat=False, batch_size=batch_size)
 
         # update args and print
         embed_num = len(text_field.vocab)
@@ -89,7 +89,7 @@ def train_and_test(model,
                 else:
                     step -= 100
             print('\nLoading model from {}...'.format(model_path))
-            model.load_state_dict(torch.load(model_path))
+            model.load_state_dict(torch.load(snapshot + model_path))
 
         # train or predict
         if predict is not None:
@@ -121,4 +121,4 @@ def train_and_test(model,
 if __name__ == '__main__':
     # train_and_test(model=Text_CNN, model_name="text_cnn", save_dir="model/text_cnn")
     train_and_test(model=Text_CNN, model_name="text_cnn",
-                   snapshot="model/text_cnn", train=False, test=False, predict="Turkmenistan Test Project")
+                   snapshot="model/text_cnn", train=False, test=False, predict="Turkmenistan Test Project ")

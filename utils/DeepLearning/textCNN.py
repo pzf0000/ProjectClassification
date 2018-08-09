@@ -1,16 +1,24 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 from torch.autograd import Variable
+from collections import OrderedDict
 
 
 class Text_CNN(nn.Module):
-    def __init__(self, embed_num, embed_dim, class_num, kernel_num, kernel_sizes, dropout, static):
+    def __init__(self,
+                 embed_num,
+                 embed_dim=128,
+                 class_num=81,
+                 kernel_num=100,
+                 kernel_sizes=[3, 4, 5],
+                 dropout=0.5,
+                 static=False):
         super(Text_CNN, self).__init__()
         self.static = static
 
         self.embed = nn.Embedding(embed_num, embed_dim)
-        # self.convs1 = [nn.Conv2d(Ci, Co, (K, embed_dim)) for K in Ks]
         self.convs1 = nn.ModuleList([nn.Conv2d(1, kernel_num, (K, embed_dim)) for K in kernel_sizes])
         # self.conv13 = nn.Conv2d(1, kernel_num, (3, embed_dim))
         # self.conv14 = nn.Conv2d(1, kernel_num, (4, embed_dim))
@@ -42,3 +50,4 @@ class Text_CNN(nn.Module):
         x = self.dropout(x)
         logit = self.fc1(x)
         return logit
+

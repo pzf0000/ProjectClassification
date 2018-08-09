@@ -56,9 +56,9 @@ def train(train_iter, dev_iter, model, index,
                 corrects = (torch.max(logit, 1)[1].view(target.size()).data == target.data).sum()
                 accuracy = 100.0 * corrects / batch.batch_size
                 if steps % 100 == 0:
-                    print(str(index) + "\tBatch[{}]\t" +
-                          "loss: {:.6f}\tacc: {:.4f}%({}/{})\n".format(
-                              steps, loss.data[0], accuracy, corrects, batch.batch_size))
+                    print(str(index) + "\tBatch[{}]\t".format(steps) +
+                          "loss: {:.6f}\tacc: {:.4f}%({}/{})".format(
+                              loss.data[0], accuracy, corrects, batch.batch_size))
 
             if steps % test_interval == 0:
                 dev_acc = eval(dev_iter, model)[0]
@@ -92,9 +92,9 @@ def eval(data_iter, model):
     avg_loss /= size
     accuracy = 100.0 * corrects / size
     s = 'Evaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
-                                                                     accuracy,
-                                                                     corrects,
-                                                                     size)
+                                                                   accuracy,
+                                                                   corrects,
+                                                                   size)
     print(s)
     return accuracy, s
 

@@ -12,7 +12,7 @@ class Scenario(data.Dataset):
     def sort_key(ex):
         return len(ex.text)
 
-    def __init__(self, dataset, text_field, label_field, path=None, examples=None, **kwargs):
+    def __init__(self, dataset, index, text_field, label_field, path=None, examples=None, **kwargs):
 
         def clean_str(string):
             """
@@ -41,21 +41,20 @@ class Scenario(data.Dataset):
             examples = []
 
             for item in dataset:
+                if item[index] == '0':
+                    examples += [
+                        data.Example.fromlist([item[0], "negative"], fields)]
 
-            with open('train.neg', errors="ignore") as f:
-                examples += [
-                    data.Example.fromlist([line, "negative"], fields) for line in f]
-
-            with open('train.pos', errors="ignore") as f:
-                examples += [
-                    data.Example.fromlist([line, "positive"], fields) for line in f]
+                if item[index] == '1':
+                    examples += [
+                        data.Example.fromlist([item[0], "positive"], fields)]
 
         super(Scenario, self).__init__(examples, fields, **kwargs)
 
     @classmethod
-    def splits(cls, dataset, text_field, label_field, dev_ratio=.1, test_ratio=.1, shuffle=True, root='.', **kwargs):
+    def splits(cls, dataset, index, text_field, label_field, dev_ratio=.1, test_ratio=.1, shuffle=True, root='.', **kwargs):
         path = root
-        examples = cls(dataset, text_field, label_field, path=path, **kwargs).examples
+        examples = cls(dataset, index, text_field, label_field, path=path, **kwargs).examples
 
         if shuffle:
             random.shuffle(examples)
@@ -63,6 +62,6 @@ class Scenario(data.Dataset):
         dev_index = -1 * int((dev_ratio+test_ratio) * len(examples))
         test_index = -1 * int(test_ratio * len(examples))
 
-        return (cls(text_field, label_field, examples=examples[:dev_index]),
-                cls(text_field, label_field, examples=examples[dev_index:test_index]),
-                cls(text_field, label_field, examples=examples[test_index:]))
+        return (cls(dataset, index, text_field, label_field, examples=examples[:dev_index]),
+                cls(dataset, index, text_field, label_field, examples=examples[dev_index:test_index]),
+                cls(dataset, index, text_field, label_field, examples=examples[test_index:]))
