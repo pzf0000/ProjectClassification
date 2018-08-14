@@ -1,3 +1,4 @@
+import os
 import re
 import random
 import numpy as np
@@ -26,6 +27,11 @@ label_fields = data.Field(sequential=False, use_vocab=False)
 
 
 class mydataset(data.Dataset):
+
+    @staticmethod
+    def sort_key(ex):
+        return len(ex.BUSINESS_GROUP_NAME)
+
     def __init__(self, dataset, text_fields, label_fields, examples=None, **kwargs):
         def clean_str(string):
             """
@@ -83,6 +89,8 @@ class Config:
     epochs = 256
     static = False
     log_interval = 1
+    test_interval = 100
+    save_interval = 500
 
 
 args = Config()
@@ -97,6 +105,7 @@ train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, te
 args.embed_num = len(text_fields.vocab)
 # args.class_num = len(label_fields.vocab) - 1
 args.class_num = 81
+
 
 class TextCNN(nn.Module):
     def __init__(self, args):
@@ -130,7 +139,7 @@ class TextCNN(nn.Module):
         x = F.relu(self.lin(x))
 
         x = self.dropout(x)
-        logit = self.fc1(x)
+        logit = F.sigmoid(self.fc1(x))
         return logit
 
 
@@ -142,6 +151,75 @@ steps = 0
 best_acc = 0
 last_step = 0
 net.train()
+
+
+def save(model, save_dir, save_prefix, steps, model_name=None):
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+
+    if model_name is not None:
+        save_prefix = model_name + "_" + save_prefix
+
+    save_prefix = os.path.join(save_dir, save_prefix)
+    save_path = '{}_steps_{}.pt'.format(save_prefix, steps)
+    torch.save(model.state_dict(), save_path)
+
+
+def eval(data_iter, model):
+    model.eval()
+    corrects = 0.0
+    avg_loss = 0
+    for batch in data_iter:
+        feature = []
+        target = []
+        for b in batch.fields:
+            if b.isdigit():
+                target.append(getattr(batch, b))
+            else:
+                feature.append(getattr(batch, b))
+        for f in feature:
+            f.data.t_()
+
+        target_len = len(target)
+        batch_len = batch.batch_size
+
+        new_target_items = []
+        for b in range(batch_len):
+            new_item = torch.Tensor(list(target[t][b].tolist() for t in range(target_len)))
+            new_target_items.append(new_item.reshape(1, len(new_item)))
+
+        target = torch.cat(tuple(new_target_items), 0)
+
+        logit = model(feature)
+
+        # 使用距离的平方作为loss，最后除以每一个batch的大小
+        delta = logit - target
+        loss = (delta ** 2).sum() / batch_len
+
+        avg_loss += loss.data[0]
+
+        for i in range(len(delta)):
+            correct = 0
+            sum = 0
+            item_len = len(delta[i])
+            for j in range(item_len):
+                if delta[i][j].int().data == 1 or target[i][j].int().data == 1:
+                    sum += 1
+                    if delta[i][j].int().data == target[i][j].int().data:
+                        correct += 1
+            correct /= sum
+            corrects += correct
+
+    size = len(data_iter.dataset)
+    avg_loss /= size
+    accuracy = corrects / size
+    print("Evaluation - loss: {:.6f}  acc: {:.6f}%({}/{})".format(avg_loss, accuracy, corrects, size))
+    return accuracy
+
+
+print("=========================")
+print("Training")
+print("=========================")
 
 for epoch in range(1, args.epochs + 1):
     losses = []
@@ -172,8 +250,10 @@ for epoch in range(1, args.epochs + 1):
         logit = net(feature)
 
         # 需要torch.LongTensor
-        loss_func = nn.MultiLabelMarginLoss()
-        loss = loss_func(logit, target.long())
+        # loss_func = nn.MultiLabelMarginLoss()
+        # loss = loss_func(logit, target.long())
+        # loss = ((logit - target) ** 2).sum() / (logit.shape[0] * logit.shape[1])
+        loss = ((logit - target) ** 2).sum() / batch_len
         # optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -182,6 +262,19 @@ for epoch in range(1, args.epochs + 1):
 
         losses.append(loss.data.mean())
 
-    print('[%d/%d] Loss: %.4f' % (epoch, args.epochs, np.mean(losses)))
+        if steps % args.test_interval == 0:
+            dev_acc = eval(dev_iter, net)
+            if dev_acc > best_acc:
+                best_acc = dev_acc
+                last_step = steps
+                save(net, "/", 'best', steps)
+        elif steps % args.save_interval == 0:
+            save(net, "/", 'snapshot', steps)
 
+    print('[%d/%d] Loss: %.6f' % (epoch, args.epochs, np.mean(losses)))
 
+print("=========================")
+print("Testing")
+print("=========================")
+
+eval(test_iter, net)
