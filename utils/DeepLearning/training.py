@@ -92,9 +92,9 @@ def eval(data_iter, model):
     avg_loss /= size
     accuracy = 100.0 * corrects / size
     s = 'Evaluation - loss: {:.6f}  acc: {:.4f}%({}/{}) \n'.format(avg_loss,
-                                                                   accuracy,
-                                                                   corrects,
-                                                                   size)
+                                                                     accuracy,
+                                                                     corrects,
+                                                                     size)
     print(s)
     return accuracy, s
 

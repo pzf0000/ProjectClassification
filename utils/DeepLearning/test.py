@@ -95,34 +95,39 @@ train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, te
                                                        device=-1, repeat=False)
 
 args.embed_num = len(text_fields.vocab)
-args.class_num = len(label_fields.vocab) - 1
-
+# args.class_num = len(label_fields.vocab) - 1
+args.class_num = 81
 
 class TextCNN(nn.Module):
     def __init__(self, args):
         super(TextCNN, self).__init__()
+        self.args = args
         self.static = args.static
         self.embed = nn.Embedding(args.embed_num, args.embed_dim)
-        self.covs = nn.ModuleList([nn.Conv2d(1, args.kernel_num, (K, args.embed_dim)) for K in args.kernel_sizes])
+        self.convs = nn.ModuleList([nn.Conv2d(1, args.kernel_num, (K, args.embed_dim)) for K in args.kernel_sizes])
+        self.lin = nn.Linear(len(args.kernel_sizes) * args.kernel_num + 8, len(args.kernel_sizes) * args.kernel_num)
         self.dropout = nn.Dropout(args.dropout)
         self.fc1 = nn.Linear(len(args.kernel_sizes) * args.kernel_num, args.class_num)
 
     def forward(self, x):
         x1 = self.embed(x[0])
         x2 = torch.cat(tuple([x[i] for i in np.arange(1, 9, 1)]), 1)
-        # x2应为float类型，且应该有第三维度，第三维度size为128（即x1的embed_dim）
         x2 = x2.float()
 
         if self.static:
             x1 = Variable(x1)
             x2 = Variable(x2)
 
+        # 使用卷积处理项目名称
+        x1 = x1.unsqueeze(1)
+        x1 = [F.relu(conv(x1)).squeeze(3) for conv in self.convs]
+        x1 = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x1]
+        x1 = torch.cat(x1, 1)
+
+        # 将x1和x2合并
         x = torch.cat((x1, x2), 1)
 
-        x = x.unsqueeze(1)
-        x = [F.relu(conv(x)).squeeze(3) for conv in self.covs]
-        x = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x]
-        x = torch.cat(x, 1)
+        x = F.relu(self.lin(x))
 
         x = self.dropout(x)
         logit = self.fc1(x)
@@ -139,6 +144,7 @@ last_step = 0
 net.train()
 
 for epoch in range(1, args.epochs + 1):
+    losses = []
     for batch in train_iter:
         feature = []
         target = []
@@ -149,22 +155,33 @@ for epoch in range(1, args.epochs + 1):
                 feature.append(getattr(batch, b))
         for f in feature:
             f.data.t_()
-        for t in target:
-            t.data.sub_(1)
+
+        # 81*64 --> 64*81
+        # 将[标签][批次]改为[批次][标签]
+        target_len = len(target)
+        batch_len = batch.batch_size
+
+        new_target_items = []
+        for b in range(batch_len):
+            new_item = torch.Tensor(list(target[t][b].tolist() for t in range(target_len)))
+            new_target_items.append(new_item.reshape(1, len(new_item)))
+
+        target = torch.cat(tuple(new_target_items), 0)
 
         optimizer.zero_grad()
         logit = net(feature)
 
-        loss = F.cross_entropy(logit, target)
+        # 需要torch.LongTensor
+        loss_func = nn.MultiLabelMarginLoss()
+        loss = loss_func(logit, target.long())
+        # optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         steps += 1
 
-        if steps % args.log_interval == 0:
-            corrects = (torch.max(logit, 1)[1].view(target.size()).data == target.data).sum()
-            accuracy = 100.0 * corrects / batch.batch_size
-            if steps % 100 == 0:
-                print("\tBatch[{}]\t".format(steps) +
-                      "loss: {:.6f}\tacc: {:.4f}%({}/{})".format(
-                          loss.data[0], accuracy, corrects, batch.batch_size))
+        losses.append(loss.data.mean())
+
+    print('[%d/%d] Loss: %.4f' % (epoch, args.epochs, np.mean(losses)))
+
+
