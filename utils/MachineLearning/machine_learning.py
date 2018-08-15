@@ -92,7 +92,7 @@ def test(classifiers, x_test, y_test=None, sum=True):
         results.append(result.toarray())
 
     if sum:
-        result = [[0] * 81] * len(results[0])
+        result = [[0] * 79] * len(results[0])
         for re in results:
             result += re
         results = result
@@ -108,4 +108,4 @@ if __name__ == '__main__':
     train(data, True)
     classifiers = load_model()
 
-    result = test(classifiers, data[1][5])
+    result = test(classifiers, data[1], data[3])

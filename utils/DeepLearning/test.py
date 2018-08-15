@@ -1,7 +1,8 @@
 import os
 import re
-import random
+import time
 import numpy as np
+import datetime
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
@@ -24,6 +25,12 @@ dataset = load_dataset("../../data.npy")
 
 text_fields = data.Field(sequential=True, lower=True)
 label_fields = data.Field(sequential=False, use_vocab=False)
+
+file_name = str(datetime.datetime.now())[:19]
+file_name = file_name.replace(' ', '_')
+file_name = file_name.replace('-', '_')
+file_name = file_name.replace(':', '_')
+file = open(file_name + ".txt", "w")
 
 
 class mydataset(data.Dataset):
@@ -91,13 +98,28 @@ class Config:
     log_interval = 1
     test_interval = 100
     save_interval = 500
+    middle_linear_size = 10
+
+    def __str__(self):
+        s = str(self.__class__.__name__)
+        s += "\n"
+        for attr in sorted(self.__dir__()):
+            if attr[0] != "_":
+                s += "{} = {}\n".format(attr, getattr(self, attr))
+        return s
 
 
+s = "=========================\nParameters\n=========================\n"
 args = Config()
+s += str(args)
+print(s)
+file.write(s)
+file.write("\n")
+
 
 train_data, dev_data, test_data = mydataset.splits(dataset, text_fields, label_fields)
-text_fields.build_vocab(train_data, dev_data, test_data)
-label_fields.build_vocab(train_data, dev_data, test_data)
+text_fields.build_vocab(train_data, dev_data)
+label_fields.build_vocab(train_data, dev_data)
 train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, test_data),
                                                        batch_sizes=(args.batch_size, len(dev_data), len(test_data)),
                                                        device=-1, repeat=False)
@@ -114,7 +136,8 @@ class TextCNN(nn.Module):
         self.static = args.static
         self.embed = nn.Embedding(args.embed_num, args.embed_dim)
         self.convs = nn.ModuleList([nn.Conv2d(1, args.kernel_num, (K, args.embed_dim)) for K in args.kernel_sizes])
-        self.lin = nn.Linear(len(args.kernel_sizes) * args.kernel_num + 8, len(args.kernel_sizes) * args.kernel_num)
+        self.lin1 = nn.Linear(8, args.middle_linear_size)
+        self.lin2 = nn.Linear(len(args.kernel_sizes) * args.kernel_num + args.middle_linear_size, len(args.kernel_sizes) * args.kernel_num)
         self.dropout = nn.Dropout(args.dropout)
         self.fc1 = nn.Linear(len(args.kernel_sizes) * args.kernel_num, args.class_num)
 
@@ -132,18 +155,25 @@ class TextCNN(nn.Module):
         x1 = [F.relu(conv(x1)).squeeze(3) for conv in self.convs]
         x1 = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x1]
         x1 = torch.cat(x1, 1)
+        # x1 = self.dropout(x1)
+
+        x2 = F.relu(self.lin1(x2))
 
         # 将x1和x2合并
         x = torch.cat((x1, x2), 1)
 
-        x = F.relu(self.lin(x))
+        x = F.relu(self.lin2(x))
 
-        x = self.dropout(x)
         logit = F.sigmoid(self.fc1(x))
         return logit
 
 
 net = TextCNN(args)
+s = "=========================\nModule\n=========================\n"
+s += str(net)
+print(s)
+file.write(s)
+file.write('\n')
 
 optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
 
@@ -193,33 +223,40 @@ def eval(data_iter, model):
         logit = model(feature)
 
         # 使用距离的平方作为loss，最后除以每一个batch的大小
-        delta = logit - target
-        loss = (delta ** 2).sum() / batch_len
+        # delta = logit - target
+        # loss = ((delta ** 2).sum() / batch_len) ** (1 / 2)
+        # loss = (logit.int() == target.int()).sum() / batch_len
+        loss = (((logit - target) ** 2).sum().float().requires_grad_(True) / batch_len) ** (1 / 2)
 
         avg_loss += loss.data[0]
 
-        for i in range(len(delta)):
+        for i in range(batch_len):
+            item_len = len(logit[i])
             correct = 0
             sum = 0
-            item_len = len(delta[i])
             for j in range(item_len):
-                if delta[i][j].int().data == 1 or target[i][j].int().data == 1:
+                # if target[i][j].int().data == 1:
+                if target[i][j].int().data == 1 or logit[i][j].int().data == 1:
                     sum += 1
-                    if delta[i][j].int().data == target[i][j].int().data:
+                    if logit[i][j].int() == target[i][j].int():
                         correct += 1
-            correct /= sum
-            corrects += correct
+            corrects += float(correct) / float(sum)
 
     size = len(data_iter.dataset)
     avg_loss /= size
-    accuracy = corrects / size
-    print("Evaluation - loss: {:.6f}  acc: {:.6f}%({}/{})".format(avg_loss, accuracy, corrects, size))
+    accuracy = 100 * corrects / size
+    s = "Evaluation [{}/{}] loss: {:.6f}  acc: {:.4f}%".format(int(corrects), size, avg_loss, accuracy)
+    print(s)
+    file.write(s)
+    file.write('\n')
     return accuracy
 
 
-print("=========================")
-print("Training")
-print("=========================")
+start = time.time()
+start_str = "=========================\nTraining\n========================="
+print(start_str)
+file.write(start_str)
+file.write('\n')
 
 for epoch in range(1, args.epochs + 1):
     losses = []
@@ -253,8 +290,11 @@ for epoch in range(1, args.epochs + 1):
         # loss_func = nn.MultiLabelMarginLoss()
         # loss = loss_func(logit, target.long())
         # loss = ((logit - target) ** 2).sum() / (logit.shape[0] * logit.shape[1])
-        loss = ((logit - target) ** 2).sum() / batch_len
-        # optimizer.zero_grad()
+        # delta = logit - target
+        # loss = ((delta ** 2).sum() / batch_len) ** (1 / 2)
+        loss = (((logit - target) ** 2).sum().float().requires_grad_(True) / batch_len) ** (1 / 2)
+
+        optimizer.zero_grad()  # 清空所有优化的梯度
         loss.backward()
         optimizer.step()
 
@@ -267,14 +307,32 @@ for epoch in range(1, args.epochs + 1):
             if dev_acc > best_acc:
                 best_acc = dev_acc
                 last_step = steps
-                save(net, "/", 'best', steps)
+                save(net, "model", 'best', steps)
         elif steps % args.save_interval == 0:
-            save(net, "/", 'snapshot', steps)
+            save(net, "model", 'snapshot', steps)
 
-    print('[%d/%d] Loss: %.6f' % (epoch, args.epochs, np.mean(losses)))
+    s = "Training [{}/{}] loss: {:.6f}".format(epoch, args.epochs, np.mean(losses))
+    print(s)
+    file.write(s)
+    file.write('\n')
 
-print("=========================")
-print("Testing")
-print("=========================")
+end = time.time()
+s = "Training spent: {:.2f} min".format((end - start) / 60)
+print(s)
+file.write(s)
+file.write('\n')
 
+start_str = "=========================\nTesting\n========================="
+print(start_str)
+file.write(start_str)
+file.write('\n')
+
+start = time.time()
 eval(test_iter, net)
+end = time.time()
+s = "Testing spent: {:.2f} ms".format((end - start) * 1000)
+print(s)
+file.write(s)
+file.write('\n')
+
+file.close()
