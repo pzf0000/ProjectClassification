@@ -33,6 +33,29 @@ file_name = file_name.replace(':', '_')
 file = open(file_name + ".txt", "w")
 
 
+class Config:
+    batch_size = 64
+    kernel_sizes = [3, 4, 5]
+    kernel_num = 100
+    embed_dim = 128
+    dropout = 0.2
+    learning_rate = 0.01
+    epochs = 256
+    static = False
+    log_interval = 1
+    test_interval = 100
+    save_interval = 500
+    middle_linear_size = 10
+
+    def __str__(self):
+        s = str(self.__class__.__name__)
+        s += "\n"
+        for attr in sorted(self.__dir__()):
+            if attr[0] != "_":
+                s += "{} = {}\n".format(attr, getattr(self, attr))
+        return s
+
+
 class mydataset(data.Dataset):
 
     @staticmethod
@@ -86,29 +109,6 @@ class mydataset(data.Dataset):
                 cls(dataset, text_field, label_field, examples=examples[test_index:]))
 
 
-class Config:
-    batch_size = 64
-    kernel_sizes = [3, 4, 5]
-    kernel_num = 100
-    embed_dim = 128
-    dropout = 0.5
-    learning_rate = 0.001
-    epochs = 256
-    static = False
-    log_interval = 1
-    test_interval = 100
-    save_interval = 500
-    middle_linear_size = 10
-
-    def __str__(self):
-        s = str(self.__class__.__name__)
-        s += "\n"
-        for attr in sorted(self.__dir__()):
-            if attr[0] != "_":
-                s += "{} = {}\n".format(attr, getattr(self, attr))
-        return s
-
-
 s = "=========================\nParameters\n=========================\n"
 args = Config()
 s += str(args)
@@ -155,7 +155,7 @@ class TextCNN(nn.Module):
         x1 = [F.relu(conv(x1)).squeeze(3) for conv in self.convs]
         x1 = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x1]
         x1 = torch.cat(x1, 1)
-        # x1 = self.dropout(x1)
+        x1 = self.dropout(x1)
 
         x2 = F.relu(self.lin1(x2))
 
@@ -258,6 +258,8 @@ print(start_str)
 file.write(start_str)
 file.write('\n')
 
+dev_acc_list = []
+
 for epoch in range(1, args.epochs + 1):
     losses = []
     for batch in train_iter:
@@ -304,6 +306,7 @@ for epoch in range(1, args.epochs + 1):
 
         if steps % args.test_interval == 0:
             dev_acc = eval(dev_iter, net)
+            dev_acc_list.append(dev_acc)
             if dev_acc > best_acc:
                 best_acc = dev_acc
                 last_step = steps
@@ -328,7 +331,7 @@ file.write(start_str)
 file.write('\n')
 
 start = time.time()
-eval(test_iter, net)
+acc = eval(test_iter, net)
 end = time.time()
 s = "Testing spent: {:.2f} ms".format((end - start) * 1000)
 print(s)
@@ -336,3 +339,8 @@ file.write(s)
 file.write('\n')
 
 file.close()
+
+with open("results.txt", "a+") as f:
+    f.write(str(args.dropout) + "\t" + str(args.middle_linear_size) + "\t" + str(args.kernel_num) + "\t")
+    f.write(str(args.learning_rate) + "\t" + str(acc) + "%\t" + str(max(dev_acc_list)) + "%\t" + str((end - start) * 1000))
+    f.write("\n")
