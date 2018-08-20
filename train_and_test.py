@@ -1,9 +1,7 @@
 import os
 import re
-import time
 import numpy as np
 import pandas as pd
-import datetime
 import argparse
 import torch
 from torch import nn as nn
@@ -22,6 +20,7 @@ parser.add_argument("-kn", "--kernel_num", type=int, default=100)
 parser.add_argument("-l", "--log_interval", type=int, default=1)
 parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
 parser.add_argument("-s", "--save_interval", type=int, default=500)
+parser.add_argument("-sd", "--save_dir", type=str, default="model")
 parser.add_argument("-st", "--static", type=bool, default=False)
 parser.add_argument("-t", "--test_interval", type=int, default=100)
 parser.add_argument("-m", "--middle_linear_size", type=int, default=8)
@@ -137,8 +136,6 @@ train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, te
                                                        device=-1, repeat=False)
 
 args.embed_num = len(text_fields.vocab)
-# 总共 81 个输出场景
-args.class_num = 81
 
 
 class TextCNN(nn.Module):
@@ -193,6 +190,9 @@ net.train()
 
 
 def save(model, save_dir, save_prefix, steps, model_name=None):
+    if save_dir is None:
+        return
+
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
@@ -231,10 +231,6 @@ def eval(data_iter, model):
 
         logit = model(feature)
 
-        # 使用距离的平方作为loss，最后除以每一个batch的大小
-        # delta = logit - target
-        # loss = ((delta ** 2).sum() / batch_len) ** (1 / 2)
-        # loss = (logit.int() == target.int()).sum() / batch_len
         loss = (((logit - target) ** 2).sum().float().requires_grad_(True) / batch_len) ** (1 / 2)
 
         avg_loss += loss.data[0]
@@ -244,7 +240,6 @@ def eval(data_iter, model):
             correct = 0
             sum = 0
             for j in range(item_len):
-                # if target[i][j].int().data == 1:
                 if target[i][j].int().data == 1 or logit[i][j].int().data == 1:
                     sum += 1
                     if logit[i][j].int() == target[i][j].int():
@@ -254,18 +249,11 @@ def eval(data_iter, model):
     size = len(data_iter.dataset)
     avg_loss /= size
     accuracy = 100 * corrects / size
-    s = "Evaluation [{}/{}] loss: {:.6f}  acc: {:.4f}%".format(int(corrects), size, avg_loss, accuracy)
-    print(s)
-    file.write(s)
-    file.write('\n')
+    print("Evaluation [{}/{}] loss: {:.6f}  acc: {:.4f}%".format(int(corrects), size, avg_loss, accuracy))
     return accuracy
 
 
-start = time.time()
-start_str = "=========================\nTraining\n========================="
-print(start_str)
-file.write(start_str)
-file.write('\n')
+print("=========================\nTraining\n=========================")
 
 for epoch in range(1, args.epochs + 1):
     losses = []
@@ -315,60 +303,11 @@ for epoch in range(1, args.epochs + 1):
             if dev_acc > best_acc:
                 best_acc = dev_acc
                 last_step = steps
-        #         save(net, "model", 'best', steps)
-        # elif steps % args.save_interval == 0:
-        #     save(net, "model", 'snapshot', steps)
+                save(net, args.save_dir, 'best', steps)
+        elif steps % args.save_interval == 0:
+            save(net, args.save_dir, 'snapshot', steps)
 
-    s = "Training [{}/{}] loss: {:.6f}".format(epoch, args.epochs, np.mean(losses))
-    print(s)
-    file.write(s)
-    file.write('\n')
+    print("Training [{}/{}] loss: {:.6f}".format(epoch, args.epochs, np.mean(losses)))
 
-    if epoch in [64, 128, 256]:
-        start_str = "=========================\nTesting\n========================="
-        print(start_str)
-        file.write(start_str)
-        file.write('\n')
-
-        start_time = time.time()
-        acc = eval(test_iter, net)
-        end_time = time.time()
-        s = "Testing spent: {:.2f} ms".format((end_time - start_time) * 1000)
-        print(s)
-        file.write(s)
-        file.write('\n')
-
-        with open("results.txt", "a+") as f:
-            f.write(str(args.dropout) + "\t" + str(args.middle_linear_size) + "\t" + str(
-                args.kernel_num) + "\t")
-            f.write(str(args.learning_rate) + "\t" + str(acc) + "%\t" + str(best_acc) + "%\t" + str(
-                (end_time - start_time) * 1000))
-            f.write("\t" + str(epoch))
-            f.write("\n")
-
-end = time.time()
-s = "Training spent: {:.2f} min".format((end - start) / 60)
-print(s)
-file.write(s)
-file.write('\n')
-
-start_str = "=========================\nTesting\n========================="
-print(start_str)
-file.write(start_str)
-file.write('\n')
-
-start = time.time()
+print("=========================\nTesting\n=========================")
 acc = eval(test_iter, net)
-end = time.time()
-s = "Testing spent: {:.2f} ms".format((end - start) * 1000)
-print(s)
-file.write(s)
-file.write('\n')
-
-file.close()
-
-with open("results.txt", "a+") as f:
-    f.write(str(args.dropout) + "\t" + str(args.middle_linear_size) + "\t" + str(args.kernel_num) + "\t")
-    f.write(str(args.learning_rate) + "\t" + str(acc) + "%\t" + str(best_acc) + "%\t" + str((end - start) * 1000))
-    f.write("\t" + str(args.epochs))
-    f.write("\n")

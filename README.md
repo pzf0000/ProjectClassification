@@ -9,7 +9,7 @@
 | npy | t | 目标npy文件路径 | str | "data.npy" |
 
 ## 训练、验证与测试 / Train, Verify and Test
-文件： train.py
+文件： train_and_test.py  
 参数说明：  
 
 | 参数 | 缩写 | 含义 | 类型 | 默认值 |
@@ -24,6 +24,7 @@
 | log_interval | l | 每隔多少训练数据打印一次日志 | int | 1 |
 | learning_rate | lr | 学习率 | float | 0.001 |
 | save_interval | s | 每隔多少固定保存（不包含best的自动存储） | int | 100 |
+| save_dir | sd | 模型保存路径（若为None则不保存） | str | "model" |
 | static | st | 填充嵌入层 | bool | False |
 | test_interval | t | 每训练多少数据进行一次验证 | int | 100 |
 | middle_linear_size | m | 网络中间层节点数量 | int | 8 |
