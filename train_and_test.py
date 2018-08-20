@@ -21,14 +21,14 @@ parser.add_argument("-l", "--log_interval", type=int, default=1)
 parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
 parser.add_argument("-s", "--save_interval", type=int, default=500)
 parser.add_argument("-sd", "--save_dir", type=str, default="model")
-parser.add_argument("-st", "--static", type=bool, default=False)
+parser.add_argument("-st", "--static", type=bool, default=True)
 parser.add_argument("-t", "--test_interval", type=int, default=100)
 parser.add_argument("-m", "--middle_linear_size", type=int, default=8)
 parser.add_argument("-o", "--class_num", type=int, default=81)
 args = parser.parse_args()
 
 
-def load_dataset(filename=args.data):
+def load_dataset(filename=args.dataset):
     try:
         return np.load(filename)
     except:
@@ -50,7 +50,7 @@ FEATURES = {
     "PROJECT_LABEL": 8
 }
 
-dataset = load_dataset(args.data)
+dataset = load_dataset(args.dataset)
 
 text_fields = data.Field(sequential=True, lower=True)
 label_fields = data.Field(sequential=False, use_vocab=False)
@@ -137,6 +137,11 @@ train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, te
 
 args.embed_num = len(text_fields.vocab)
 
+if isinstance(args.kernel_sizes, list):
+    kernel_sizes = [int(k) for k in args.kernel_sizes]
+else:
+    kernel_sizes = [int(k) for k in args.kernel_sizes[1:-1].split(',')]
+args.kernel_sizes = kernel_sizes
 
 class TextCNN(nn.Module):
     def __init__(self, args):

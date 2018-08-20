@@ -25,7 +25,7 @@
 | learning_rate | lr | 学习率 | float | 0.001 |
 | save_interval | s | 每隔多少固定保存（不包含best的自动存储） | int | 100 |
 | save_dir | sd | 模型保存路径（若为None则不保存） | str | "model" |
-| static | st | 填充嵌入层 | bool | False |
+| static | st | 填充嵌入层 | bool | True |
 | test_interval | t | 每训练多少数据进行一次验证 | int | 100 |
 | middle_linear_size | m | 网络中间层节点数量 | int | 8 |
 | class_num | o | 输出的类别数量（标签数量） | int | 81 |
