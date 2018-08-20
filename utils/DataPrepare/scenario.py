@@ -81,5 +81,3 @@ scenario_choice = {
     "Video Platform": 80,
     "Wireless (Including TK)": 81,
 }
-if __name__ == '__main__':
-    print(scenario_choice["Video Platform"])

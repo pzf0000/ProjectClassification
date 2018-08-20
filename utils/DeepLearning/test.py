@@ -105,14 +105,14 @@ class mydataset(data.Dataset):
 
 args = Config()
 
-for dropout in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 0.9]:
+for dropout in [0.5]:
     args.dropout = dropout
 
-    for middle_linear_size in [9, 10, 11, 12]:
+    for middle_linear_size in [8, 10, 12]:
         args.middle_linear_size = middle_linear_size
-        args.epochs = 512
+        args.epochs = 256
 
-        for lr in [0.01, 0.05, 0.1]:
+        for lr in [0.001, 0.01, 0.1]:
             args.learning_rate = lr
 
             file_name = str(datetime.datetime.now())[:19]
