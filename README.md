@@ -1,5 +1,21 @@
 # 项目分类 / Project Classification
 ## 数据预处理 / Derpare Data
+### 数据字段说明
+
+|下标|字段名|
+|:---:|:---:|
+|0|PROJECT_NAME|
+|1|BUSINESS_UNIT|
+|2|REGION_ID|
+|3|REP_OFFICE_ID|
+|4|CUSTOMER_ID|
+|5|PROJECT_LEVEL_NAME|
+|6|BUSINESS_GROUP_NAME|
+|7|DELIVERY_TYPE|
+|8|PROJECT_LABEL|
+|9-89|场景 0 / 1 序列
+
+### 文件与参数
 文件：prepare_data_from_csv.py  
 参数说明：  
 
@@ -19,7 +35,7 @@
 | dataset | data | npy数据的路径 | str | "data.npy" |
 | epochs | e | 训练的批次数量 | int | 256 |
 | embed_dim | ed | 嵌入操作维度 | int | 128 |
-| kernel_sizes | ks | 卷集合大小的集合（字符串需为list形式） | str | "[3, 4, 5]" |
+| kernel_sizes | ks | 卷集合大小的集合（字符串需为list形式） | str | "[1, 2, 3, 2, 1]" |
 | kernel_num | kn | 卷集合数目 | int | 100 |
 | log_interval | l | 每隔多少训练数据打印一次日志 | int | 1 |
 | learning_rate | lr | 学习率 | float | 0.001 |

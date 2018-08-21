@@ -9,6 +9,7 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 from torchtext import data
 from utils.IO.IO import load_dataset
+from utils.DataPrepare.scenario import scenario_choice
 
 FEATURES = {
     "PROJECT_NAME": 0,
@@ -21,7 +22,19 @@ FEATURES = {
     "DELIVERY_TYPE": 7,
     "PROJECT_LABEL": 8
 }
-dataset = load_dataset("../../data.npy")
+dataset = load_dataset("../../data2.npy")
+# new_dataset = []
+# for i in range(len(dataset)):
+#     item = list(dataset[i, 0:9]) + list([dataset[i, scenario_choice["Wireless (Including TK)"]]])
+#     item = item + list(dataset[i, scenario_choice["Fixed network"]])
+#     item = item + list(dataset[i, scenario_choice["Energy"]])
+#     item = item + list(dataset[i, scenario_choice["POD (Pure Equipment)"]])
+#     item = item + list(dataset[i, scenario_choice["IBS"]])
+#     item = item + list(dataset[i, scenario_choice["Software Integration Service"]])
+#     new_dataset.append(item)
+#
+# dataset = np.array(new_dataset)
+
 
 text_fields = data.Field(sequential=True, lower=True)
 label_fields = data.Field(sequential=False, use_vocab=False)
@@ -29,13 +42,13 @@ label_fields = data.Field(sequential=False, use_vocab=False)
 
 class Config:
     batch_size = 64
-    kernel_sizes = [3, 4, 5]
+    kernel_sizes = [2, 3, 3, 2, 1]
     kernel_num = 100
     embed_dim = 128
     dropout = 0.2
     learning_rate = 0.001
     epochs = 256
-    static = False
+    static = True
     log_interval = 1
     test_interval = 100
     save_interval = 500
@@ -80,9 +93,15 @@ class mydataset(data.Dataset):
         text_fields.preprocessing = data.Pipeline(clean_str)
         fields = [(f, text_fields) for f in FEATURES]
 
-        from utils.DataPrepare.scenario import scenario_choice
         for c in scenario_choice.values():
             fields.append((str(c), label_fields))
+
+        # fields.append((str(scenario_choice["Wireless (Including TK)"]), label_fields))
+        # fields.append((str(scenario_choice["Fixed network"]), label_fields))
+        # fields.append((str(scenario_choice["Energy"]), label_fields))
+        # fields.append((str(scenario_choice["POD (Pure Equipment)"]), label_fields))
+        # fields.append((str(scenario_choice["IBS"]), label_fields))
+        # fields.append((str(scenario_choice["Software Integration Service"]), label_fields))
 
         if examples is None:
             examples = []
@@ -108,11 +127,11 @@ args = Config()
 for dropout in [0.5]:
     args.dropout = dropout
 
-    for middle_linear_size in [8, 10, 12]:
+    for middle_linear_size in [8, 10]:
         args.middle_linear_size = middle_linear_size
         args.epochs = 256
 
-        for lr in [0.001, 0.01, 0.1]:
+        for lr in [0.002, 0.01]:
             args.learning_rate = lr
 
             file_name = str(datetime.datetime.now())[:19]
@@ -252,7 +271,8 @@ for dropout in [0.5]:
                                 sum += 1
                                 if logit[i][j].int() == target[i][j].int():
                                     correct += 1
-                        corrects += float(correct) / float(sum)
+                        if sum != 0:
+                            corrects += float(correct) / sum
 
                 size = len(data_iter.dataset)
                 avg_loss /= size
@@ -327,7 +347,7 @@ for dropout in [0.5]:
                 file.write(s)
                 file.write('\n')
 
-                if epoch in [64, 128, 256]:
+                if epoch in [64, 128]:
                     start_str = "=========================\nTesting\n========================="
                     print(start_str)
                     file.write(start_str)

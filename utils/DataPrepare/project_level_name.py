@@ -5,5 +5,6 @@ project_level_name_choice = {
     "Regional Level (Class B)": 2,
     "Top Representative office Level (Class C)": 3,
     "Representative office Level (Class D)": 4,
+    "Level D (Rep Office)": 18,
     "Company Level (Class S)": 19,
 }
