@@ -22,11 +22,12 @@ business_unit_choice = {
     "Customer Support": 3,
     "Managed Service": 4,
     "IT Integration Service": 5,
-    "Managed Service & Network Assurance": 6,
-    "SmartCare": 7,
-    "Learning Service": 8,
-    "Software & Cloud Services": 9,
-    "Public Cloud Service": 10,
+    "Network Rollout Service": 6,
+    "Managed Service & Network Assurance": 7,
+    "SmartCare": 8,
+    "Learning Service": 9,
+    "Software & Cloud Services": 10,
+    "Public Cloud Service": 11,
 }
 
 project_label_choice = {
@@ -43,6 +44,7 @@ project_level_name_choice = {
     "Regional Level (Class B)": 2,
     "Top Representative office Level (Class C)": 3,
     "Representative office Level (Class D)": 4,
+    "Level D (Rep Office)": 18,
     "Company Level (Class S)": 19,
 }
 

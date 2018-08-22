@@ -4,26 +4,25 @@ import numpy as np
 import pandas as pd
 import argparse
 import torch
-from torch import nn as nn
-from torch.nn import functional as F
-from torch.autograd import Variable
 from torchtext import data
+from model import TextCNN
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--batch_size", type=int, default=64)
-parser.add_argument("-d", "--dropout", type=float, default=0.2)
+parser.add_argument("-d", "--dropout", type=float, default=0.5)
 parser.add_argument("-data", "--dataset", type=str, default="data.npy")
 parser.add_argument("-e", "--epochs", type=int, default=256)
 parser.add_argument("-ed", "--embed_dim", type=int, default=128)
-parser.add_argument("-ks", "--kernel_sizes", type=str, default="[1, 2, 3, 2, 1]")
+parser.add_argument("-ks", "--kernel_sizes", type=str, default="[1, 2, 3, 3, 2, 1]")
 parser.add_argument("-kn", "--kernel_num", type=int, default=100)
 parser.add_argument("-l", "--log_interval", type=int, default=1)
-parser.add_argument("-lr", "--learning_rate", type=float, default=0.001)
+parser.add_argument("-lr", "--learning_rate", type=float, default=0.002)
 parser.add_argument("-s", "--save_interval", type=int, default=500)
-parser.add_argument("-sd", "--save_dir", type=str, default="model")
+parser.add_argument("-sd", "--save_dir", type=str, default="models")
 parser.add_argument("-st", "--static", type=bool, default=True)
+parser.add_argument("-sv", "--save_vocab", type=str, default="text_fields.pt")
 parser.add_argument("-t", "--test_interval", type=int, default=100)
-parser.add_argument("-m", "--middle_linear_size", type=int, default=8)
+parser.add_argument("-m", "--middle_linear_size", type=int, default=7)
 parser.add_argument("-o", "--class_num", type=int, default=81)
 args = parser.parse_args()
 
@@ -135,6 +134,9 @@ train_iter, dev_iter, test_iter = data.Iterator.splits((train_data, dev_data, te
                                                        batch_sizes=(args.batch_size, len(dev_data), len(test_data)),
                                                        device=-1, repeat=False)
 
+if args.save_vocab is not None:
+    torch.save(text_fields.vocab, str(args.save_vocab))
+
 args.embed_num = len(text_fields.vocab)
 
 if isinstance(args.kernel_sizes, list):
@@ -142,45 +144,6 @@ if isinstance(args.kernel_sizes, list):
 else:
     kernel_sizes = [int(k) for k in args.kernel_sizes[1:-1].split(',')]
 args.kernel_sizes = kernel_sizes
-
-class TextCNN(nn.Module):
-    def __init__(self, args):
-        super(TextCNN, self).__init__()
-        self.args = args
-        self.static = args.static
-        self.embed = nn.Embedding(args.embed_num, args.embed_dim)
-        self.convs = nn.ModuleList([nn.Conv2d(1, args.kernel_num, (K, args.embed_dim)) for K in args.kernel_sizes])
-        self.lin1 = nn.Linear(8, args.middle_linear_size)
-        self.lin2 = nn.Linear(len(args.kernel_sizes) * args.kernel_num + args.middle_linear_size, len(args.kernel_sizes) * args.kernel_num)
-        self.dropout = nn.Dropout(args.dropout)
-        self.fc1 = nn.Linear(len(args.kernel_sizes) * args.kernel_num, args.class_num)
-
-    def forward(self, x):
-        x1 = self.embed(x[0])
-        x2 = torch.cat(tuple([x[i] for i in np.arange(1, 9, 1)]), 1)
-        x2 = x2.float()
-
-        if self.static:
-            x1 = Variable(x1)
-            x2 = Variable(x2)
-
-        # 使用卷积处理项目名称
-        x1 = x1.unsqueeze(1)
-        x1 = [F.relu(conv(x1)).squeeze(3) for conv in self.convs]
-        x1 = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in x1]
-        x1 = torch.cat(x1, 1)
-        x1 = self.dropout(x1)
-
-        x2 = F.relu(self.lin1(x2))
-
-        # 将x1和x2合并
-        x = torch.cat((x1, x2), 1)
-
-        x = F.relu(self.lin2(x))
-
-        logit = F.sigmoid(self.fc1(x))
-        return logit
-
 
 net = TextCNN(args)
 print("=========================\nModule\n=========================\n")
@@ -194,7 +157,7 @@ last_step = 0
 net.train()
 
 
-def save(model, save_dir, save_prefix, steps, model_name=None):
+def save_model(model, save_dir, save_prefix, steps, model_name=None):
     if save_dir is None:
         return
 
@@ -308,9 +271,9 @@ for epoch in range(1, args.epochs + 1):
             if dev_acc > best_acc:
                 best_acc = dev_acc
                 last_step = steps
-                save(net, args.save_dir, 'best', steps)
+                save_model(net, args.save_dir, 'best', steps)
         elif steps % args.save_interval == 0:
-            save(net, args.save_dir, 'snapshot', steps)
+            save_model(net, args.save_dir, 'snapshot', steps)
 
     print("Training [{}/{}] loss: {:.6f}".format(epoch, args.epochs, np.mean(losses)))
 
