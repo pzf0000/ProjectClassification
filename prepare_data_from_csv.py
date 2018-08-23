@@ -326,22 +326,21 @@ if __name__ == '__main__':
             data_item = [0] * 90
             project_id = new_project_id
             # 给各字段赋值
-            data_item[0] = pre_data_item[3]  # name
-            data_item[1] = business_unit_choice[pre_data_item[4]]  # bu
-            data_item[2] = int(pre_data_item[1])
-            data_item[2] = int(pre_data_item[5])
-            data_item[3] = int(pre_data_item[8])
+            data_item[0] = pre_data_item[3]  # PROJECT_NAME
+            data_item[1] = business_unit_choice[pre_data_item[6]]  # BUSINESS_UNIT
+            data_item[2] = int(pre_data_item[9])  # REGION_ID
+            data_item[3] = int(pre_data_item[15])
             try:
-                data_item[4] = int(pre_data_item[11])
+                data_item[4] = int(pre_data_item[18])
             except:
                 data_item[4] = 0
-            data_item[5] = project_level_name_choice[pre_data_item[17]]
-            data_item[6] = business_group_name_choice[pre_data_item[25]]
+            data_item[5] = project_level_name_choice[pre_data_item[25]]  # PROJECT_LEVEL_NAME
+            data_item[6] = business_group_name_choice[pre_data_item[45]]  # BUSINESS_GROUP_NAME
             try:
-                data_item[7] = int(pre_data_item[26])
+                data_item[7] = int(pre_data_item[60])  # DELIVERY_TYPE
             except:
                 data_item[7] = 0
-            data_item[8] = project_label_choice[pre_data_item[33]]
+            data_item[8] = project_label_choice[pre_data_item[96]]  # PROJECT_LABEL
 
         scenario = scenario_choice[pre_data_item[0]]
         data_item[8 + scenario] = 1

@@ -15,7 +15,7 @@
 |8|PROJECT_LABEL|
 |9-89|场景 0 / 1 序列
 
-若需要修改默认下标值，需要修改原文件 329-347 行  
+**若需要修改默认的下标值，需要修改原文件 329-347 行**  
 
 ### 文件与参数
 文件：prepare_data_from_csv.py  
@@ -39,6 +39,7 @@
 | batch_size | b | 一个训练批次的大小 | int | 64 |
 | dropout | d | 随机节点的比例 | float | 0.5 |
 | dataset | data | npy数据的路径 | str | "data.npy" |
+| deep_learning | dl | 是否使用深度学习 | bool | True |
 | epochs | e | 训练的批次数量 | int | 256 |
 | embed_dim | ed | 嵌入操作维度 | int | 128 |
 | kernel_sizes | ks | 卷集合大小的集合（字符串需为list形式） | str | "[1, 2, 3, 3, 2, 1]" |
@@ -51,6 +52,13 @@
 | save_vocab | sv | 保存词典的路径（包含文件名） | str | None |
 | test_interval | t | 每训练多少数据进行一次验证 | int | 100 |
 | middle_linear_size | m | 网络中间层节点数量 | int | 7 |
+| machine_learning | ml | 是否使用机器学习 | bool | Ture |
+| machine_learning_model | mm | 机器学习模型保存路径（为None时不保存模型） | str | "ml_model.npy" |
 | class_num | o | 输出的类别数量（标签数量） | int | 81 |
 
 ## 预测 / Predict
+文件：predict.py  
+输入：模型与测试数据  
+输出：预测结果  
+### 必选参数
+
