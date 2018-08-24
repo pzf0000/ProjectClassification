@@ -52,6 +52,8 @@ args.kernel_sizes = kernel_sizes
 net = TextCNN(args)
 
 output = None
+dl_output = None
+ml_output = None
 
 FEATURE_LABEL = ["PROJECT_NAME", "BUSINESS_UNIT", "REGION_ID", "REP_OFFICE_ID",
                  "CUSTOMER_ID", "PROJECT_LEVEL_NAME", "BUSINESS_GROUP_NAME", "DELIVERY_TYPE", "PROJECT_LABEL"
@@ -59,7 +61,6 @@ FEATURE_LABEL = ["PROJECT_NAME", "BUSINESS_UNIT", "REGION_ID", "REP_OFFICE_ID",
 
 # Deep Learning
 if args.snapshot is not None:
-    print("Loading model from {}...".format(args.snapshot))
     net.load_state_dict(torch.load(args.snapshot))
 
     net.eval()
@@ -92,12 +93,19 @@ if args.machine_learning_model is not None:
         results.append(result.toarray())
 
     result = [[0] * len(results[0][0])] * len(results[0])
-    weight = [1] * len(results[0])
+    weight = np.array([1] * len(results))
     # 根据 weight 相加
     for i in range(len(results)):
         result += results[i] * weight[i]
-    ml_output = result[0].round()
+    result = result / int(weight.sum())
+    ml_output = result[0].round().tolist()
 
+if dl_output is not None:
+    output = np.array(dl_output)
+    if ml_output is not None:
+        output = output * (1 - args.machine_learning_proportion) + np.array(ml_output) * args.machine_learning_proportion
+elif ml_output is not None:
+    output = np.array(ml_output)
 
 if output is None:
     raise ValueError("No output, maybe you need to train a model first.")
@@ -105,19 +113,23 @@ if output is None:
 if args.label:
     from prepare_data_from_csv import scenario_choice
 
+    # 根据值取键
     key_list = []
     value_list = []
-
     for key, value in scenario_choice.items():
         key_list.append(key)
         value_list.append(value)
 
     for i in range(len(output)):
-        if output[i] == 1:
+        if output[i] >= 0.5:
             if i in value_list:
                 get_value_index = value_list.index(i)
                 print(key_list[get_value_index])
             else:
                 raise KeyError("The scenario code is {}. It not in the dictionary.".format(str(i)))
 else:
-    print(output)
+    for o in output:
+        if o >= 0.5:
+            print(1, end="")
+        else:
+            print(0, end="")

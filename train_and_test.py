@@ -256,7 +256,7 @@ if args.deep_learning:
 
             optimizer.zero_grad()  # 清空所有优化的梯度
             logit = net(feature)
-
+            exit(0)
             # 需要torch.LongTensor
             # loss_func = nn.MultiLabelMarginLoss()
             # loss = loss_func(logit, target.long())
