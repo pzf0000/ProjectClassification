@@ -10,7 +10,7 @@ from model import TextCNN
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--batch_size", type=int, default=64)
 parser.add_argument("-d", "--dropout", type=float, default=0.5)
-parser.add_argument("-data", "--dataset", type=str, default="data.npy")
+parser.add_argument("-data", "--dataset", type=str, default="data2.npy")
 parser.add_argument("-dl", "--deep_learning", type=bool, default=True)
 parser.add_argument("-e", "--epochs", type=int, default=256)
 parser.add_argument("-ed", "--embed_dim", type=int, default=128)
@@ -23,7 +23,7 @@ parser.add_argument("-sd", "--save_dir", type=str, default="models")
 parser.add_argument("-st", "--static", type=bool, default=True)
 parser.add_argument("-sv", "--save_vocab", type=str, default="text_fields.pt")
 parser.add_argument("-t", "--test_interval", type=int, default=100)
-parser.add_argument("-m", "--middle_linear_size", type=int, default=7)
+parser.add_argument("-m", "--middle_linear_size", type=int, default=8)
 parser.add_argument("-ml", "--machine_learning", type=bool, default=True)
 parser.add_argument("-mm", "--machine_learning_model", type=str, default="ml_model.npy")
 parser.add_argument("-o", "--class_num", type=int, default=81)
@@ -256,7 +256,7 @@ if args.deep_learning:
 
             optimizer.zero_grad()  # 清空所有优化的梯度
             logit = net(feature)
-            exit(0)
+
             # 需要torch.LongTensor
             # loss_func = nn.MultiLabelMarginLoss()
             # loss = loss_func(logit, target.long())
@@ -378,3 +378,79 @@ if args.machine_learning:
         corrects += float(correct) / float(sum)
     acc = corrects / size
     print("Evaluation [{}/{}]  acc: {:.4f}%".format(int(corrects), size, acc * 100))
+
+if args.deep_learning and args.machine_learning:
+    print("=========================\nTest All\n=========================")
+
+    data_iter = test_iter
+    model = net
+
+    model.eval()
+    corrects = 0.0
+    for batch in data_iter:
+        # 深度学习预测
+        feature = []
+        target = []
+        for b in batch.fields:
+            if b.isdigit():
+                target.append(getattr(batch, b))
+            else:
+                feature.append(getattr(batch, b))
+        for f in feature:
+            f.data.t_()
+        target_len = len(target)
+        batch_len = batch.batch_size
+
+        new_target_items = []
+        for b in range(batch_len):
+            new_item = torch.Tensor(list(target[t][b].tolist() for t in range(target_len)))
+            new_target_items.append(new_item.reshape(1, len(new_item)))
+        target = torch.cat(tuple(new_target_items), 0)
+        dl_output = net(feature).squeeze(0).tolist()
+
+        # 机器学习
+        classifiers = np.load(args.machine_learning_model)
+        feature_new = []
+        # [字段][数据标号] --> [数据标号][字段]
+        for j in range(batch_len):
+            item = []
+            for i in range(len(feature)):
+                if i != 0:
+                    item.append(int(feature[i][j].tolist()[0]))
+            feature_new.append(item)
+        feature = np.array(feature_new)
+
+        results = []
+        for c in classifiers:
+            result = c.predict(feature)
+            results.append(result.toarray())
+
+        result = [[0] * len(results[0][0])] * len(results[0])
+        weight = np.array([1] * len(results))
+        # 根据 weight 相加
+        for i in range(len(results)):
+            result += results[i] * weight[i]
+        result = result / int(weight.sum())
+        ml_output = result.tolist()
+
+        if "machine_learning_proportion" not in args:
+            args.machine_learning_proportion = 0.75
+
+        output = np.array(dl_output) * (1 - args.machine_learning_proportion)\
+                 + np.array(ml_output) * args.machine_learning_proportion
+
+        # 计算准确率
+        for i in range(batch_len):
+            item_len = len(output[i])
+            correct = 0
+            sum = 0
+            for j in range(item_len):
+                if target[i][j].int().data == 1 or output[i][j] >= 0.5:
+                    sum += 1
+                    if round(output[i][j]) == target[i][j].int().data:
+                        correct += 1
+            corrects += float(correct) / float(sum)
+
+    size = len(data_iter.dataset)
+    accuracy = 100 * corrects / size
+    print("Evaluation [{}/{}] acc: {:.4f}%".format(int(corrects), size, accuracy))

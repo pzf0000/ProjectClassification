@@ -25,7 +25,7 @@ if __name__ == '__main__':
     [[0-8,[81],]]
     len=[0-8, 9-89(0/1)]
     """
-    pre_data = input.read(filename="SCENARIO.csv")
+    pre_data = input.read(filename="../../db2.csv")
     project_id = None
     data_item = [0] * 90
     data_list = []
@@ -43,20 +43,20 @@ if __name__ == '__main__':
             project_id = new_project_id
             # 给各字段赋值
             data_item[0] = pre_data_item[3]  # PROJECT_NAME
-            data_item[1] = business_unit_choice[pre_data_item[6]]  # BUSINESS_UNIT
-            data_item[2] = int(pre_data_item[9])  # REGION_ID
-            data_item[3] = int(pre_data_item[15])
+            data_item[1] = business_unit_choice[pre_data_item[4]]  # BUSINESS_UNIT
+            data_item[2] = int(pre_data_item[5])  # REGION_ID
+            data_item[3] = int(pre_data_item[6])
             try:
-                data_item[4] = int(pre_data_item[18])
+                data_item[4] = int(pre_data_item[7])
             except:
                 data_item[4] = 0
-            data_item[5] = project_level_name_choice[pre_data_item[25]]  # PROJECT_LEVEL_NAME
-            data_item[6] = business_group_name_choice[pre_data_item[45]]  # BUSINESS_GROUP_NAME
+            data_item[5] = project_level_name_choice[pre_data_item[8]]  # PROJECT_LEVEL_NAME
+            data_item[6] = business_group_name_choice[pre_data_item[9]]  # BUSINESS_GROUP_NAME
             try:
-                data_item[7] = int(pre_data_item[60])  # DELIVERY_TYPE
+                data_item[7] = int(pre_data_item[10])  # DELIVERY_TYPE
             except:
                 data_item[7] = 0
-            data_item[8] = project_label_choice[pre_data_item[96]]  # PROJECT_LABEL
+            data_item[8] = project_label_choice[pre_data_item[11]]  # PROJECT_LABEL
 
         scenario = scenario_choice[pre_data_item[0]]
         data_item[8 + scenario] = 1

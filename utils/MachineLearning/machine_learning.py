@@ -6,7 +6,7 @@ from skmultilearn.problem_transform import BinaryRelevance
 from skmultilearn.problem_transform import LabelPowerset
 from skmultilearn.adapt import MLkNN
 from sklearn.metrics import accuracy_score
-from sklearn.naive_bayes import GaussianNB, BernoulliNB
+from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 
@@ -35,7 +35,7 @@ def data_prepocessing(data_file):
     label = np.array(label)
 
     # 将数据随机分成训练集和测试集
-    x_train, x_test, y_train, y_test = train_test_split(feature_set, label, random_state=1)
+    x_train, x_test, y_train, y_test = train_test_split(feature_set, label)
 
     return x_train, x_test, y_train, y_test
 
@@ -118,15 +118,15 @@ def test(classifiers, x_test, y_test=None, sum=True, weight=None):
 
 
 if __name__ == '__main__':
-    data = data_prepocessing("../../data2.npy")
-    train(data, True)
+    data = data_prepocessing("../../data.npy")
+    x = train(data, True)
     classifiers = load_model()
 
     weight = np.array([1]*len(classifiers))
-    start = time.time()
-    result = test(classifiers, data[1][0], data[3][0], weight=weight)
-    end = time.time()
-    print(end-start)
+    # start = time.time()
+    result = test(classifiers, data[1], data[3], weight=weight)
+    # end = time.time()
+    # print(end-start)
     acc_list = result[0]
     result = result[1]
 
@@ -145,3 +145,4 @@ if __name__ == '__main__':
     corrects /= size
     print(acc_list)
     print(corrects)
+

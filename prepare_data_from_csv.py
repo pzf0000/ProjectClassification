@@ -135,8 +135,15 @@ scenario_choice = {
 import numpy as np
 import csv
 
+class BaseInput:
+    """
+    基本输入接口
+    """
+    def read(self, **kwargs):
+        return self.input(**kwargs)
 
-class CSV_Input:
+
+class CSV_Input(BaseInput):
     """
     从csv文件中读取数据
     """
